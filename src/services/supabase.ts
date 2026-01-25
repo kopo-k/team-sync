@@ -1,6 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { CONFIG } from '../utils/config';
-
+//  クライアント作成の「ロジック」をここに集約
 let supabase: SupabaseClient | null = null;
 
 export function getSupabaseClient(): SupabaseClient {
