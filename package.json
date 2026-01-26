@@ -1,6 +1,6 @@
 {
   "name": "team-sync",
-  "displayName": "team-sync",
+  "displayName": "TeamSync",
   "description": "チーム開発のリアルタイム共有ツール",
   "version": "0.0.1",
   "engines": {
@@ -14,10 +14,43 @@
   "contributes": {
     "commands": [
       {
-        "command": "team-sync.helloWorld",
-        "title": "Hello World"
+        "command": "team-sync.login",
+        "title": "TeamSync: ログイン"
+      },
+      {
+        "command": "team-sync.logout",
+        "title": "TeamSync: ログアウト"
+      },
+      {
+        "command": "team-sync.createTeam",
+        "title": "TeamSync: チームを作成"
+      },
+      {
+        "command": "team-sync.joinTeam",
+        "title": "TeamSync: チームに参加"
+      },
+      {
+        "command": "team-sync.setStatus",
+        "title": "TeamSync: ステータスを設定"
       }
-    ]
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "teamSync",
+          "title": "TeamSync",
+          "icon": "$(organization)"
+        }
+      ]
+    },
+    "views": {
+      "teamSync": [
+        {
+          "id": "teamSyncSidebar",
+          "name": "メンバー"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
@@ -32,6 +65,9 @@
     "check-types": "tsc --noEmit",
     "lint": "eslint src",
     "test": "vscode-test"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.4"
   },
   "devDependencies": {
     "@types/vscode": "^1.108.1",
