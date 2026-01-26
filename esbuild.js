@@ -1,4 +1,5 @@
 const esbuild = require("esbuild");
+require("dotenv").config();
 
 const production = process.argv.includes('--production');
 const watch = process.argv.includes('--watch');
@@ -38,9 +39,12 @@ async function main() {
 		external: ['vscode'],
 		logLevel: 'silent',
 		plugins: [
-			/* add to the end of plugins array */
 			esbuildProblemMatcherPlugin,
 		],
+		define: {
+			'process.env.SUPABASE_URL': JSON.stringify(process.env.SUPABASE_URL || ''),
+			'process.env.SUPABASE_ANON_KEY': JSON.stringify(process.env.SUPABASE_ANON_KEY || ''),
+		},
 	});
 	if (watch) {
 		await ctx.watch();
