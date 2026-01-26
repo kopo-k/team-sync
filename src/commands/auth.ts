@@ -1,14 +1,17 @@
 import * as vscode from 'vscode';
-import { signInWithGitHub, signOut } from '../services/authService';
-
-// 認証関連のコマンド
+import { signInWithGitHub, signOut, getCurrentUser } from '../services/authService';
 
 export async function loginCommand(): Promise<void> {
   try {
+    vscode.window.showInformationMessage('ブラウザでGitHub認証を行ってください...');
     await signInWithGitHub();
-    vscode.window.showInformationMessage('ログインしました');
+
+    const user = await getCurrentUser();
+    const username = user?.user_metadata?.user_name || 'ユーザー';
+    vscode.window.showInformationMessage(`ログインしました: ${username}`);
   } catch (error) {
-    vscode.window.showErrorMessage('ログインに失敗しました');
+    const message = error instanceof Error ? error.message : 'ログインに失敗しました';
+    vscode.window.showErrorMessage(message);
   }
 }
 
