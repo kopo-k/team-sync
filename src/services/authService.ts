@@ -11,38 +11,70 @@ export async function signInWithGitHub(): Promise<boolean> {
 
   return new Promise((resolve, reject) => {
     const server = http.createServer(async (req, res) => {
-      if (!req.url?.startsWith('/callback')) {
-        res.writeHead(404);
-        res.end();
+      const url = new URL(req.url || '/', `http://localhost:${CALLBACK_PORT}`);
+
+      // /complete エンドポイント（フラグメントからトークンを受け取る）
+      if (url.pathname === '/complete') {
+        const accessToken = url.searchParams.get('access_token');
+        const refreshToken = url.searchParams.get('refresh_token');
+
+        if (accessToken) {
+          try {
+            await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken || '',
+            });
+            res.writeHead(200);
+            res.end('OK');
+            server.close();
+            resolve(true);
+          } catch (error) {
+            res.writeHead(500);
+            res.end('Error');
+            server.close();
+            reject(error);
+          }
+        }
         return;
       }
 
-      try {
-        const url = new URL(req.url, `http://localhost:${CALLBACK_PORT}`);
+      // /callback エンドポイント
+      if (url.pathname === '/callback') {
         const code = url.searchParams.get('code');
 
         if (code) {
-          // PKCEフローの認証コードをセッションに交換
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
-
-          if (error) {
-            throw error;
+          // PKCEフローの認証コード
+          try {
+            const { error } = await supabase.auth.exchangeCodeForSession(code);
+            if (error) {
+              throw error;
+            }
+            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(`
+              <html>
+                <body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
+                  <h1>認証成功!</h1>
+                  <p>VS Codeに戻ってください。このウィンドウは閉じて構いません。</p>
+                </body>
+              </html>
+            `);
+            server.close();
+            resolve(true);
+          } catch (error) {
+            res.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(`
+              <html>
+                <body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
+                  <h1>認証失敗</h1>
+                  <p>エラーが発生しました。</p>
+                </body>
+              </html>
+            `);
+            server.close();
+            reject(error);
           }
-
-          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-          res.end(`
-            <html>
-              <body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
-                <h1>認証成功!</h1>
-                <p>VS Codeに戻ってください。このウィンドウは閉じて構いません。</p>
-              </body>
-            </html>
-          `);
-
-          server.close();
-          resolve(true);
         } else {
-          // ハッシュフラグメントで返された場合のフォールバック
+          // ハッシュフラグメントで返された場合
           res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
           res.end(`
             <html>
@@ -55,9 +87,9 @@ export async function signInWithGitHub(): Promise<boolean> {
                   const refreshToken = params.get('refresh_token');
 
                   if (accessToken) {
-                    fetch('/complete?access_token=' + accessToken + '&refresh_token=' + (refreshToken || ''))
+                    fetch('/complete?access_token=' + encodeURIComponent(accessToken) + '&refresh_token=' + encodeURIComponent(refreshToken || ''))
                       .then(() => {
-                        document.body.innerHTML = '<h1>認証成功!</h1><p>VS Codeに戻ってください。</p>';
+                        document.body.innerHTML = '<h1>認証成功!</h1><p>VS Codeに戻ってください。このウィンドウは閉じて構いません。</p>';
                       });
                   } else {
                     document.body.innerHTML = '<h1>認証失敗</h1><p>トークンが見つかりません。</p>';
@@ -67,53 +99,20 @@ export async function signInWithGitHub(): Promise<boolean> {
             </html>
           `);
         }
-      } catch (error) {
-        res.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(`
-          <html>
-            <body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
-              <h1>認証失敗</h1>
-              <p>エラーが発生しました。VS Codeで再度お試しください。</p>
-            </body>
-          </html>
-        `);
-        server.close();
-        reject(error);
+        return;
       }
-    });
 
-    // /complete エンドポイントでトークンを受け取る
-    server.on('request', async (req, res) => {
-      if (req.url?.startsWith('/complete')) {
-        const url = new URL(req.url, `http://localhost:${CALLBACK_PORT}`);
-        const accessToken = url.searchParams.get('access_token');
-        const refreshToken = url.searchParams.get('refresh_token');
-
-        if (accessToken) {
-          const supabase = getSupabaseClient();
-          await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken || '',
-          });
-
-          res.writeHead(200);
-          res.end('OK');
-          server.close();
-          resolve(true);
-        }
-      }
+      // その他
+      res.writeHead(404);
+      res.end();
     });
 
     server.listen(CALLBACK_PORT, async () => {
-      // PKCEフローでOAuth URLを生成
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'github',
         options: {
           redirectTo: REDIRECT_URI,
           skipBrowserRedirect: true,
-          queryParams: {
-            flowType: 'pkce',
-          },
         },
       });
 
