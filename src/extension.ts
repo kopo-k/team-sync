@@ -57,6 +57,19 @@ async function checkLoginState(): Promise<void> {
       // リアルタイム購読開始
       unsubscribe = subscribeToActivities(team.id, (updated) => {
         sidebarProvider.setMembers(updated);
+
+        // 同一ファイル編集の警告
+        const myFile = vscode.window.activeTextEditor?.document.fileName;
+        if (myFile && currentMemberId) {
+          const others = updated.filter(
+            m => m.id !== currentMemberId && m.activity?.file_path === myFile
+          );
+          for (const other of others) {
+            vscode.window.showWarningMessage(
+              `${other.github_username} さんが ${myFile.split('/').pop()} を編集中です`
+            );
+          }
+        }
       });
     }
 
