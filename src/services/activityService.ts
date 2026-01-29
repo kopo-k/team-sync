@@ -53,7 +53,7 @@ export async function getTeamActivities(teamId: string): Promise<MemberWithActiv
     .from('members')
     .select()
     .eq('team_id', teamId);
-  
+
   if (membersError || !members) {
     return [];
   }
@@ -77,9 +77,26 @@ export async function getTeamActivities(teamId: string): Promise<MemberWithActiv
 
 export function subscribeToActivities(
   teamId: string,
-  callback: (activities: MemberWithActivity[]) => void
+  callback: (activities: MemberWithActivity[]) => void // ステータスを書いた人がいたら更新
 ): () => void {
   const supabase = getSupabaseClient();
-  // TODO: リアルタイム購読実装
-  return () => {};
+
+  // activities テーブルの変更を監視
+  const channel = supabase
+    .channel(`team-activities-${teamId}`)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'activities' },
+      async () => {
+        // 変更があったらチーム全体の最新データを再取得
+        const activities = await getTeamActivities(teamId);
+        callback(activities);
+      }
+    )
+    .subscribe();
+
+  // 購読解除関数を返す
+  return () => {
+    supabase.removeChannel(channel);
+  };
 }

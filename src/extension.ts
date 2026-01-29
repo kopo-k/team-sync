@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { getCurrentUser, getSession } from './services/authService';
 import { getMyTeam, getMyMember } from './services/teamService';
-import { getTeamActivities } from './services/activityService';
+import { getTeamActivities, subscribeToActivities } from './services/activityService';
 import { loginCommand, logoutCommand } from './commands/auth';
 import { createTeamCommand, joinTeamCommand } from './commands/team';
 import { setStatusCommand } from './commands/status';
@@ -10,6 +10,7 @@ import { startFileWatcher, setCurrentMember } from './watchers/fileWatcher';
 
 let sidebarProvider: TeamSyncSidebarProvider;
 let currentMemberId: string | null = null;
+let unsubscribe: (() => void) | null = null;
 
 export async function activate(context: vscode.ExtensionContext) {
   console.log('TeamSync is now active!');
@@ -52,6 +53,11 @@ async function checkLoginState(): Promise<void> {
       // メンバーの作業状況を取得してサイドバーに表示
       const activities = await getTeamActivities(team.id);
       sidebarProvider.setMembers(activities);
+
+      // リアルタイム購読開始
+      unsubscribe = subscribeToActivities(team.id, (updated) => {
+        sidebarProvider.setMembers(updated);
+      });
     }
 
     // メンバーIDを保存
@@ -65,5 +71,11 @@ async function checkLoginState(): Promise<void> {
   }
 }
 
-export function deactivate() {}
+export function deactivate() {
+  // リアルタイム購読を解除
+  if (unsubscribe) {
+    unsubscribe();
+    unsubscribe = null;
+  }
+}
 
