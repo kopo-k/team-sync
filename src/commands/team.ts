@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { createTeam, joinTeam } from '../services/teamService';
+import { getTeamActivities } from '../services/activityService';
 import { TeamSyncSidebarProvider } from '../views/sidebarProvider';
 
 export async function createTeamCommand(sidebarProvider: TeamSyncSidebarProvider): Promise<void> {
@@ -16,6 +17,11 @@ export async function createTeamCommand(sidebarProvider: TeamSyncSidebarProvider
     const team = await createTeam(name);
     if (team) {
       sidebarProvider.setTeam(team.name);
+
+      // メンバーの作業状況を取得してサイドバーに表示
+      const activities = await getTeamActivities(team.id);
+      sidebarProvider.setMembers(activities);
+
       vscode.window.showInformationMessage(
         `チーム「${team.name}」を作成しました\n招待コード: ${team.invite_code}`
       );
@@ -43,6 +49,11 @@ export async function joinTeamCommand(sidebarProvider: TeamSyncSidebarProvider):
     const team = await joinTeam(code);
     if (team) {
       sidebarProvider.setTeam(team.name);
+
+      // メンバーの作業状況を取得してサイドバーに表示
+      const activities = await getTeamActivities(team.id);
+      sidebarProvider.setMembers(activities);
+
       vscode.window.showInformationMessage(`チーム「${team.name}」に参加しました`);
     }
   } catch (error) {

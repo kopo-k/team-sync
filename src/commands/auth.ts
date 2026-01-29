@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { signInWithGitHub, signOut, getCurrentUser } from '../services/authService';
 import { getMyTeam, getMyMember } from '../services/teamService';
+import { getTeamActivities } from '../services/activityService';
 import { TeamSyncSidebarProvider } from '../views/sidebarProvider';
 import { setCurrentMember } from '../watchers/fileWatcher';
 
@@ -19,6 +20,10 @@ export async function loginCommand(sidebarProvider: TeamSyncSidebarProvider): Pr
     const team = await getMyTeam();
     if (team) {
       sidebarProvider.setTeam(team.name);
+
+      // メンバーの作業状況を取得してサイドバーに表示
+      const activities = await getTeamActivities(team.id);
+      sidebarProvider.setMembers(activities);
     }
 
     // メンバーIDを設定

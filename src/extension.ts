@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { getCurrentUser, getSession } from './services/authService';
 import { getMyTeam, getMyMember } from './services/teamService';
+import { getTeamActivities } from './services/activityService';
 import { loginCommand, logoutCommand } from './commands/auth';
 import { createTeamCommand, joinTeamCommand } from './commands/team';
 import { setStatusCommand } from './commands/status';
@@ -47,6 +48,10 @@ async function checkLoginState(): Promise<void> {
     const team = await getMyTeam();
     if (team) {
       sidebarProvider.setTeam(team.name);
+
+      // メンバーの作業状況を取得してサイドバーに表示
+      const activities = await getTeamActivities(team.id);
+      sidebarProvider.setMembers(activities);
     }
 
     // メンバーIDを保存
