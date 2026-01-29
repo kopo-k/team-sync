@@ -7,6 +7,56 @@ const CALLBACK_PORT = 54321;
 const AUTH_TIMEOUT_MS = 120000; // 認証タイムアウト（2分）
 const REDIRECT_URI = `http://localhost:${CALLBACK_PORT}/callback`;
 
+// 認証成功時のHTML
+function createSuccessHtml(): string {
+  return `
+    <html>
+      <body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
+        <h1>認証成功!</h1>
+        <p>VS Codeに戻ってください。このウィンドウは閉じて構いません。</p>
+      </body>
+    </html>
+  `;
+}
+
+// 認証失敗時のHTML
+function createErrorHtml(): string {
+  return `
+    <html>
+      <body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
+        <h1>認証失敗</h1>
+        <p>エラーが発生しました。</p>
+      </body>
+    </html>
+  `;
+}
+
+// ハッシュフラグメントからトークンを取得するHTML
+function createFragmentRedirectHtml(): string {
+  return `
+    <html>
+      <body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
+        <h1>処理中...</h1>
+        <script>
+          const hash = window.location.hash.substring(1);
+          const params = new URLSearchParams(hash);
+          const accessToken = params.get('access_token');
+          const refreshToken = params.get('refresh_token');
+
+          if (accessToken) {
+            fetch('/complete?access_token=' + encodeURIComponent(accessToken) + '&refresh_token=' + encodeURIComponent(refreshToken || ''))
+              .then(() => {
+                document.body.innerHTML = '<h1>認証成功!</h1><p>VS Codeに戻ってください。このウィンドウは閉じて構いません。</p>';
+              });
+          } else {
+            document.body.innerHTML = '<h1>認証失敗</h1><p>トークンが見つかりません。</p>';
+          }
+        </script>
+      </body>
+    </html>
+  `;
+}
+
 export async function signInWithGitHub(): Promise<boolean> {
   const supabase = getSupabaseClient();
 
@@ -51,54 +101,21 @@ export async function signInWithGitHub(): Promise<boolean> {
               throw error;
             }
             res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-            res.end(`
-              <html>
-                <body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
-                  <h1>認証成功!</h1>
-                  <p>VS Codeに戻ってください。このウィンドウは閉じて構いません。</p>
-                </body>
-              </html>
-            `);
+            // 成功HTMLを返す
+            res.end(createSuccessHtml());
             server.close();
             resolve(true);
           } catch (error) {
             res.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' });
-            res.end(`
-              <html>
-                <body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
-                  <h1>認証失敗</h1>
-                  <p>エラーが発生しました。</p>
-                </body>
-              </html>
-            `);
+            // エラーHTMLを返す
+            res.end(createErrorHtml());
             server.close();
             reject(error);
           }
         } else {
           // ハッシュフラグメントで返された場合
           res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-          res.end(`
-            <html>
-              <body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
-                <h1>処理中...</h1>
-                <script>
-                  const hash = window.location.hash.substring(1);
-                  const params = new URLSearchParams(hash);
-                  const accessToken = params.get('access_token');
-                  const refreshToken = params.get('refresh_token');
-
-                  if (accessToken) {
-                    fetch('/complete?access_token=' + encodeURIComponent(accessToken) + '&refresh_token=' + encodeURIComponent(refreshToken || ''))
-                      .then(() => {
-                        document.body.innerHTML = '<h1>認証成功!</h1><p>VS Codeに戻ってください。このウィンドウは閉じて構いません。</p>';
-                      });
-                  } else {
-                    document.body.innerHTML = '<h1>認証失敗</h1><p>トークンが見つかりません。</p>';
-                  }
-                </script>
-              </body>
-            </html>
-          `);
+          res.end(createFragmentRedirectHtml());
         }
         return;
       }
