@@ -4,6 +4,7 @@ import { MemberWithActivity } from '../types';
 type TreeItem = StatusItem | MemberItem;
 
 export class TeamSyncSidebarProvider implements vscode.TreeDataProvider<TreeItem> {
+  // クラス内部でのみ
   private _onDidChangeTreeData = new vscode.EventEmitter<TreeItem | undefined>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
@@ -16,26 +17,32 @@ export class TeamSyncSidebarProvider implements vscode.TreeDataProvider<TreeItem
     this._onDidChangeTreeData.fire(undefined);
   }
 
+  // ログイン状態の設定
   setLoginState(isLoggedIn: boolean, user?: { username: string; avatarUrl: string }): void {
     this.isLoggedIn = isLoggedIn;
     this.currentUser = user || null;
     this.refresh();
   }
 
+  // チーム名の設定
   setTeam(teamName: string | null): void {
     this.teamName = teamName;
     this.refresh();
   }
 
+  // メンバー一覧の設定
   setMembers(members: MemberWithActivity[]): void {
     this.members = members;
     this.refresh();
   }
 
+
   getTreeItem(element: TreeItem): vscode.TreeItem {
     return element;
   }
 
+  //サイドバーを開いた瞬間に呼ばれる
+  //refresh()が呼ばれたときにも呼ばれる
   getChildren(): TreeItem[] {
     const items: TreeItem[] = [];
 
@@ -45,7 +52,7 @@ export class TeamSyncSidebarProvider implements vscode.TreeDataProvider<TreeItem
       return items;
     }
 
-    // ユーザー情報
+    // ユーザー情報があれば表示
     if (this.currentUser) {
       items.push(new StatusItem(
         this.currentUser.username,
@@ -55,7 +62,7 @@ export class TeamSyncSidebarProvider implements vscode.TreeDataProvider<TreeItem
       ));
     }
 
-    // チーム状態
+    // チーム状態があれば表示
     if (!this.teamName) {
       items.push(new StatusItem('チーム未参加', 'チームを作成または参加してください', 'organization'));
       return items;
