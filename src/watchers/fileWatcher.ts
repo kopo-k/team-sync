@@ -13,7 +13,7 @@ export function startFileWatcher(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor(editor => {
       if (editor && currentMemberId) {
-        const filePath = editor.document.fileName;
+        const filePath = vscode.workspace.asRelativePath(editor.document.fileName);
         updateActivity(currentMemberId, filePath);
       }
     })

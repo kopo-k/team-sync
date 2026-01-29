@@ -13,7 +13,7 @@ export async function setStatusCommand(memberId: string): Promise<void> {
 
   try {
     const editor = vscode.window.activeTextEditor;
-    const filePath = editor?.document.fileName ?? '';
+    const filePath = editor ? vscode.workspace.asRelativePath(editor.document.fileName) : '';
     // 現在作業しているファイルパスを取得
     await updateActivity(memberId, filePath, status);
     vscode.window.showInformationMessage('ステータスを更新しました');
