@@ -71,6 +71,7 @@ async function checkLoginState(): Promise<void> {
   }
 }
 
+// 拡張機能を無効化した際に監視中ならリセット
 export function deactivate() {
   // リアルタイム購読を解除
   if (unsubscribe) {
