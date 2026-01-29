@@ -1,13 +1,14 @@
 import * as vscode from 'vscode';
 import { getCurrentUser, getSession } from './services/authService';
-import { getMyTeam } from './services/teamService';
+import { getMyTeam, getMyMember } from './services/teamService';
 import { loginCommand, logoutCommand } from './commands/auth';
 import { createTeamCommand, joinTeamCommand } from './commands/team';
 import { setStatusCommand } from './commands/status';
 import { TeamSyncSidebarProvider } from './views/sidebarProvider';
-import { startFileWatcher } from './watchers/fileWatcher';
+import { startFileWatcher, setCurrentMember } from './watchers/fileWatcher';
 
 let sidebarProvider: TeamSyncSidebarProvider;
+let currentMemberId: string | null = null;
 
 export async function activate(context: vscode.ExtensionContext) {
   console.log('TeamSync is now active!');
@@ -16,7 +17,7 @@ export async function activate(context: vscode.ExtensionContext) {
   sidebarProvider = new TeamSyncSidebarProvider();
   vscode.window.registerTreeDataProvider('teamSyncSidebar', sidebarProvider);
 
-  // 起動時にセッション確認
+  // 起動時にセッション確認(完了を待つだけ)
   await checkLoginState();
 
   // コマンド登録
@@ -26,7 +27,7 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('team-sync.createTeam', () => createTeamCommand(sidebarProvider)),
     vscode.commands.registerCommand('team-sync.joinTeam', () => joinTeamCommand(sidebarProvider)),
     vscode.commands.registerCommand('team-sync.setStatus', () => {
-      setStatusCommand('');
+      setStatusCommand(currentMemberId ?? '');
     })
   );
 
@@ -46,6 +47,13 @@ async function checkLoginState(): Promise<void> {
     const team = await getMyTeam();
     if (team) {
       sidebarProvider.setTeam(team.name);
+    }
+
+    // メンバーIDを保存
+    const member = await getMyMember();
+    if (member) {
+      currentMemberId = member.id;
+      setCurrentMember(member.id);
     }
   } else {
     sidebarProvider.setLoginState(false);
