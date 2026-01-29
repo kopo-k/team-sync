@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
 import { signInWithGitHub, signOut, getCurrentUser } from '../services/authService';
-import { getMyTeam } from '../services/teamService';
+import { getMyTeam, getMyMember } from '../services/teamService';
 import { TeamSyncSidebarProvider } from '../views/sidebarProvider';
+import { setCurrentMember } from '../watchers/fileWatcher';
 
 export async function loginCommand(sidebarProvider: TeamSyncSidebarProvider): Promise<void> {
   try {
@@ -18,6 +19,12 @@ export async function loginCommand(sidebarProvider: TeamSyncSidebarProvider): Pr
     const team = await getMyTeam();
     if (team) {
       sidebarProvider.setTeam(team.name);
+    }
+
+    // メンバーIDを設定
+    const member = await getMyMember();
+    if (member) {
+      setCurrentMember(member.id);
     }
 
     vscode.window.showInformationMessage(`ログインしました: ${username}`);
