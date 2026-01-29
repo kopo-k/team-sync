@@ -4,6 +4,7 @@ import { getSupabaseClient } from './supabase';
 import { URL } from 'url';
 
 const CALLBACK_PORT = 54321;
+const AUTH_TIMEOUT_MS = 120000; // 認証タイムアウト（2分）
 const REDIRECT_URI = `http://localhost:${CALLBACK_PORT}/callback`;
 
 export async function signInWithGitHub(): Promise<boolean> {
@@ -128,7 +129,7 @@ export async function signInWithGitHub(): Promise<boolean> {
     setTimeout(() => {
       server.close();
       reject(new Error('認証がタイムアウトしました'));
-    }, 120000);
+    }, AUTH_TIMEOUT_MS);
   });
 }
 
