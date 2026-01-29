@@ -13,6 +13,15 @@ function generateInviteCode(): string {
   return code.slice(0, 4) + '-' + code.slice(4);
 }
 
+// ユーザー情報を抽出
+function extractUserInfo(user: { id: string; user_metadata?: Record<string, any> }) {
+  return {
+    githubId: user.user_metadata?.provider_id || user.id,
+    githubUsername: user.user_metadata?.user_name || 'unknown',
+    avatarUrl: user.user_metadata?.avatar_url || '',
+  };
+}
+
 // チーム作成
 export async function createTeam(name: string): Promise<Team | null> {
   const supabase = getSupabaseClient();
@@ -36,13 +45,14 @@ export async function createTeam(name: string): Promise<Team | null> {
   }
 
   // 作成者をメンバーとして追加
+  const { githubId, githubUsername, avatarUrl } = extractUserInfo(user);
   const { error: memberError } = await supabase
     .from('members')
     .insert({
       team_id: team.id,
-      github_id: user.user_metadata?.provider_id || user.id,
-      github_username: user.user_metadata?.user_name || 'unknown',
-      avatar_url: user.user_metadata?.avatar_url || '',
+      github_id: githubId,
+      github_username: githubUsername,
+      avatar_url: avatarUrl,
     });
 
   if (memberError) {
@@ -73,11 +83,12 @@ export async function joinTeam(inviteCode: string): Promise<Team | null> {
   }
 
   // 既に参加しているか確認
+  const { githubId, githubUsername, avatarUrl } = extractUserInfo(user);
   const { data: existingMember } = await supabase
     .from('members')
     .select()
     .eq('team_id', team.id)
-    .eq('github_id', user.user_metadata?.provider_id || user.id)
+    .eq('github_id', githubId)
     .single();
 
   if (existingMember) {
@@ -90,9 +101,9 @@ export async function joinTeam(inviteCode: string): Promise<Team | null> {
     .from('members')
     .insert({
       team_id: team.id,
-      github_id: user.user_metadata?.provider_id || user.id,
-      github_username: user.user_metadata?.user_name || 'unknown',
-      avatar_url: user.user_metadata?.avatar_url || '',
+      github_id: githubId,
+      github_username: githubUsername,
+      avatar_url: avatarUrl,
     });
 
   if (memberError) {
@@ -111,10 +122,11 @@ export async function getMyTeam(): Promise<Team | null> {
     return null;
   }
 
+  const { githubId } = extractUserInfo(user);
   const { data: member } = await supabase
     .from('members')
     .select('team_id')
-    .eq('github_id', user.user_metadata?.provider_id || user.id)
+    .eq('github_id', githubId)
     .single();
 
   if (!member) {
@@ -155,10 +167,11 @@ export async function getMyMember(): Promise<Member | null> {
     return null;
   }
 
+  const { githubId } = extractUserInfo(user);
   const { data } = await supabase
     .from('members')
     .select()
-    .eq('github_id', user.user_metadata?.provider_id || user.id)
+    .eq('github_id', githubId)
     .single();
 
   return data as Member | null;
