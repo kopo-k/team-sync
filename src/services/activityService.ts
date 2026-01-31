@@ -4,6 +4,7 @@ import { Activity, MemberWithActivity } from '../types';
 // 自分の作業状況を更新
 export async function updateActivity(
   memberId: string,
+  teamId: string,
   filePath: string,
   statusMessage?: string
 ): Promise<void> {
@@ -20,6 +21,7 @@ export async function updateActivity(
     // そのメンバーのアクティビティを更新
     const updateData: Record<string, unknown> = {
       file_path: filePath,
+      team_id: teamId,
       is_active: true,
       updated_at: new Date().toISOString(),
     };
@@ -27,21 +29,28 @@ export async function updateActivity(
     if (statusMessage !== undefined) {
       updateData.status_message = statusMessage;
     }
-    await supabase
+    const { error: updateError } = await supabase
       .from('activities')
       .update(updateData)
       .eq('id', existing.id);
+    if (updateError) {
+      console.error('[TeamSync] アクティビティ更新エラー:', updateError.message);
+    }
   // 新しいアクティビティを作成
   } else {
     // 新規作成
-    await supabase
+    const { error: insertError } = await supabase
       .from('activities')
       .insert({
         member_id: memberId,
+        team_id: teamId,
         file_path: filePath,
         status_message: statusMessage || '',
         is_active: true,
       });
+    if (insertError) {
+      console.error('[TeamSync] アクティビティ作成エラー:', insertError.message);
+    }
   }
 }
 
@@ -55,6 +64,7 @@ export async function getTeamActivities(teamId: string): Promise<MemberWithActiv
     .eq('team_id', teamId);
 
   if (membersError || !members) {
+    console.error('[TeamSync] メンバー一覧取得エラー:', membersError?.message);
     return [];
   }
 
@@ -86,17 +96,14 @@ export function subscribeToActivities(
     .channel(`team-activities-${teamId}`)
     .on(
       'postgres_changes',
-      { event: '*', schema: 'public', table: 'activities' },
-      async (payload) => {
-        console.log('[TeamSync] Realtime 変更検知:', payload);
+      { event: '*', schema: 'public', table: 'activities', filter: `team_id=eq.${teamId}` },
+      async () => {
         // 変更があったらチーム全体の最新データを再取得
         const activities = await getTeamActivities(teamId);
         callback(activities);
       }
     )
-    .subscribe((status) => {
-      console.log('[TeamSync] Realtime 購読ステータス:', status);
-    });
+    .subscribe();
 
   // 購読解除関数を返す
   return () => {

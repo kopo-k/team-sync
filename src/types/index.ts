@@ -17,6 +17,7 @@ export interface Member {
 export interface Activity {
   id: string; // アクティビティの一意な識別子
   member_id: string; // アクティビティに関連するメンバーのID
+  team_id: string; // 所属するチームのID
   file_path: string; // 編集されたファイルのパス
   status_message: string; // ステータスメッセージ
   updated_at: string; // アクティビティの更新日時
