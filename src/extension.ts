@@ -3,7 +3,7 @@ import { getCurrentUser, getSession } from './services/authService';
 import { getMyTeam, getMyMember } from './services/teamService';
 import { getTeamActivities, subscribeToActivities } from './services/activityService';
 import { loginCommand, logoutCommand } from './commands/auth';
-import { createTeamCommand, joinTeamCommand } from './commands/team';
+import { createTeamCommand, joinTeamCommand, leaveTeamCommand } from './commands/team';
 import { setStatusCommand } from './commands/status';
 import { TeamSyncSidebarProvider } from './views/sidebarProvider';
 import { startFileWatcher, setCurrentMember } from './watchers/fileWatcher';
@@ -30,8 +30,13 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('team-sync.joinTeam', () => joinTeamCommand(sidebarProvider)),
     vscode.commands.registerCommand('team-sync.setStatus', () => {
       setStatusCommand(currentMemberId ?? '');
-    })
+    }),
+    vscode.commands.registerCommand('team-sync.leaveTeam', () => leaveTeamCommand(sidebarProvider))
   );
+
+  // コンテキストキーを設定（ウェルカムビューの表示制御用）
+  vscode.commands.executeCommand('setContext', 'teamSync.loggedIn', false);
+  vscode.commands.executeCommand('setContext', 'teamSync.hasTeam', false);
 
   // ファイル監視開始
   startFileWatcher(context);
@@ -44,11 +49,13 @@ async function checkLoginState(): Promise<void> {
     const username = user?.user_metadata?.user_name || 'ユーザー';
     const avatarUrl = user?.user_metadata?.avatar_url || '';
     sidebarProvider.setLoginState(true, { username, avatarUrl });
+    vscode.commands.executeCommand('setContext', 'teamSync.loggedIn', true);
 
     // チーム情報も確認
     const team = await getMyTeam();
     if (team) {
       sidebarProvider.setTeam(team.name);
+      vscode.commands.executeCommand('setContext', 'teamSync.hasTeam', true);
 
       // メンバーの作業状況を取得してサイドバーに表示
       const activities = await getTeamActivities(team.id);
@@ -81,6 +88,8 @@ async function checkLoginState(): Promise<void> {
     }
   } else {
     sidebarProvider.setLoginState(false);
+    vscode.commands.executeCommand('setContext', 'teamSync.loggedIn', false);
+    vscode.commands.executeCommand('setContext', 'teamSync.hasTeam', false);
   }
 }
 

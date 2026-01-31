@@ -44,13 +44,17 @@ export class TeamSyncSidebarProvider implements vscode.TreeDataProvider<TreeItem
   //サイドバーを開いた瞬間に呼ばれる
   //refresh()が呼ばれたときにも呼ばれる
   getChildren(): TreeItem[] {
-    const items: TreeItem[] = [];
-
-    // ログイン状態
+    // 未ログイン・チーム未参加時は空配列を返す
+    // → package.json の viewsWelcome でボタンを表示する
     if (!this.isLoggedIn) {
-      items.push(new StatusItem('未ログイン', 'ログインしてください', 'account'));
-      return items;
+      return [];
     }
+
+    if (!this.teamName) {
+      return [];
+    }
+
+    const items: TreeItem[] = [];
 
     // ユーザー情報があれば表示
     if (this.currentUser) {
@@ -60,12 +64,6 @@ export class TeamSyncSidebarProvider implements vscode.TreeDataProvider<TreeItem
         'account',
         this.currentUser.avatarUrl
       ));
-    }
-
-    // チーム状態があれば表示
-    if (!this.teamName) {
-      items.push(new StatusItem('チーム未参加', 'チームを作成または参加してください', 'organization'));
-      return items;
     }
 
     items.push(new StatusItem(this.teamName, 'チーム', 'organization'));

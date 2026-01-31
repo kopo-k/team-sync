@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { createTeam, joinTeam } from '../services/teamService';
+import { createTeam, joinTeam, leaveTeam, getMyTeam } from '../services/teamService';
 import { getTeamActivities } from '../services/activityService';
 import { TeamSyncSidebarProvider } from '../views/sidebarProvider';
 
@@ -58,6 +58,36 @@ export async function joinTeamCommand(sidebarProvider: TeamSyncSidebarProvider):
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'チームへの参加に失敗しました';
+    vscode.window.showErrorMessage(message);
+  }
+}
+
+export async function leaveTeamCommand(sidebarProvider: TeamSyncSidebarProvider): Promise<void> {
+  // 現在のチームを取得
+  const team = await getMyTeam();
+  if (!team) {
+    vscode.window.showErrorMessage('チームに参加していません');
+    return;
+  }
+
+  // 確認ダイアログ
+  const confirm = await vscode.window.showWarningMessage(
+    `チーム「${team.name}」から退出しますか？`,
+    { modal: true },
+    '退出する'
+  );
+
+  if (confirm !== '退出する') {
+    return;
+  }
+
+  try {
+    await leaveTeam(team.id);
+    sidebarProvider.setTeam(null);
+    sidebarProvider.setMembers([]);
+    vscode.window.showInformationMessage(`チーム「${team.name}」から退出しました`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'チームの退出に失敗しました';
     vscode.window.showErrorMessage(message);
   }
 }

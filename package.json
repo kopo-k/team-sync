@@ -31,7 +31,13 @@
       },
       {
         "command": "team-sync.setStatus",
-        "title": "TeamSync: ステータスを設定"
+        "title": "TeamSync: ステータスを設定",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "team-sync.leaveTeam",
+        "title": "TeamSync: チームを退出",
+        "icon": "$(sign-out)"
       }
     ],
     "viewsContainers": {
@@ -48,6 +54,35 @@
         {
           "id": "teamSyncSidebar",
           "name": "メンバー"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "teamSyncSidebar",
+        "contents": "TeamSync を始めましょう。\n[ログイン](command:team-sync.login)",
+        "when": "!teamSync.loggedIn"
+      },
+      {
+        "view": "teamSyncSidebar",
+        "contents": "チームに参加して始めましょう。\n[チームを作成](command:team-sync.createTeam)\n[チームに参加](command:team-sync.joinTeam)",
+        "when": "teamSync.loggedIn && !teamSync.hasTeam"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "team-sync.setStatus",
+          "when": "view == teamSyncSidebar && teamSync.hasTeam",
+          "group": "navigation"
+        },
+        {
+          "command": "team-sync.leaveTeam",
+          "when": "view == teamSyncSidebar && teamSync.hasTeam"
+        },
+        {
+          "command": "team-sync.logout",
+          "when": "view == teamSyncSidebar && teamSync.loggedIn"
         }
       ]
     }

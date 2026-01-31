@@ -158,6 +158,27 @@ export async function getTeamMembers(teamId: string): Promise<Member[]> {
   return data as Member[];
 }
 
+// チームを退出
+export async function leaveTeam(teamId: string): Promise<void> {
+  const supabase = getSupabaseClient();
+  const user = await getCurrentUser();
+
+  if (!user) {
+    throw new Error('ログインが必要です');
+  }
+
+  const { githubId } = extractUserInfo(user);
+  const { error } = await supabase
+    .from('members')
+    .delete()
+    .eq('team_id', teamId)
+    .eq('github_id', githubId);
+
+  if (error) {
+    throw new Error('チームの退出に失敗しました');
+  }
+}
+
 // 現在のメンバー情報を取得
 export async function getMyMember(): Promise<Member | null> {
   const supabase = getSupabaseClient();
