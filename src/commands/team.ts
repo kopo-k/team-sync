@@ -1,9 +1,12 @@
 import * as vscode from 'vscode';
-import { createTeam, joinTeam, leaveTeam, getMyTeam } from '../services/teamService';
+import { createTeam, joinTeam, leaveTeam } from '../services/teamService';
 import { getTeamActivities } from '../services/activityService';
+import { TeamStateManager } from '../services/teamStateManager';
 import { TeamSyncSidebarProvider } from '../views/sidebarProvider';
+import { syncUI } from '../views/syncUI';
+import { setCurrentTeam } from '../watchers/fileWatcher';
 
-export async function createTeamCommand(sidebarProvider: TeamSyncSidebarProvider): Promise<void> {
+export async function createTeamCommand(state: TeamStateManager, sidebar: TeamSyncSidebarProvider): Promise<void> {
   const name = await vscode.window.showInputBox({
     prompt: 'チーム名を入力してください',
     placeHolder: 'My Team',
@@ -16,12 +19,14 @@ export async function createTeamCommand(sidebarProvider: TeamSyncSidebarProvider
   try {
     const team = await createTeam(name);
     if (team) {
-      sidebarProvider.setTeam(team.name);
-      vscode.commands.executeCommand('setContext', 'teamSync.hasTeam', true);
-
-      // メンバーの作業状況を取得してサイドバーに表示
+      // 状態更新
+      state.setTeam(team.id, team.name);
+      setCurrentTeam(team.id);
       const activities = await getTeamActivities(team.id);
-      sidebarProvider.setMembers(activities);
+      state.setMembers(activities);
+
+      // UI反映
+      syncUI(state, sidebar);
 
       vscode.window.showInformationMessage(
         `チーム「${team.name}」を作成しました\n招待コード: ${team.invite_code}`
@@ -36,7 +41,7 @@ export async function createTeamCommand(sidebarProvider: TeamSyncSidebarProvider
   }
 }
 
-export async function joinTeamCommand(sidebarProvider: TeamSyncSidebarProvider): Promise<void> {
+export async function joinTeamCommand(state: TeamStateManager, sidebar: TeamSyncSidebarProvider): Promise<void> {
   const code = await vscode.window.showInputBox({
     prompt: '招待コードを入力してください',
     placeHolder: 'XXXX-XXXX',
@@ -49,12 +54,14 @@ export async function joinTeamCommand(sidebarProvider: TeamSyncSidebarProvider):
   try {
     const team = await joinTeam(code);
     if (team) {
-      sidebarProvider.setTeam(team.name);
-      vscode.commands.executeCommand('setContext', 'teamSync.hasTeam', true);
-
-      // メンバーの作業状況を取得してサイドバーに表示
+      // 状態更新
+      state.setTeam(team.id, team.name);
+      setCurrentTeam(team.id);
       const activities = await getTeamActivities(team.id);
-      sidebarProvider.setMembers(activities);
+      state.setMembers(activities);
+
+      // UI反映
+      syncUI(state, sidebar);
 
       vscode.window.showInformationMessage(`チーム「${team.name}」に参加しました`);
     }
@@ -64,17 +71,18 @@ export async function joinTeamCommand(sidebarProvider: TeamSyncSidebarProvider):
   }
 }
 
-export async function leaveTeamCommand(sidebarProvider: TeamSyncSidebarProvider): Promise<void> {
-  // 現在のチームを取得
-  const team = await getMyTeam();
-  if (!team) {
+export async function leaveTeamCommand(state: TeamStateManager, sidebar: TeamSyncSidebarProvider): Promise<void> {
+  // 現在のチーム名を状態から取得
+  const teamId = state.getTeamId();
+  const teamName = state.getTeamName();
+  if (!teamId || !teamName) {
     vscode.window.showErrorMessage('チームに参加していません');
     return;
   }
 
   // 確認ダイアログ
   const confirm = await vscode.window.showWarningMessage(
-    `チーム「${team.name}」から退出しますか？`,
+    `チーム「${teamName}」から退出しますか？`,
     { modal: true },
     '退出する'
   );
@@ -84,11 +92,16 @@ export async function leaveTeamCommand(sidebarProvider: TeamSyncSidebarProvider)
   }
 
   try {
-    await leaveTeam(team.id);
-    sidebarProvider.setTeam(null);
-    sidebarProvider.setMembers([]);
-    vscode.commands.executeCommand('setContext', 'teamSync.hasTeam', false);
-    vscode.window.showInformationMessage(`チーム「${team.name}」から退出しました`);
+    await leaveTeam(teamId);
+
+    // 状態更新
+    state.clearTeam();
+    setCurrentTeam(null);
+
+    // UI反映
+    syncUI(state, sidebar);
+
+    vscode.window.showInformationMessage(`チーム「${teamName}」から退出しました`);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'チームの退出に失敗しました';
     vscode.window.showErrorMessage(message);

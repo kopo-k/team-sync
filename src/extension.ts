@@ -1,15 +1,16 @@
 import * as vscode from 'vscode';
-import { getCurrentUser, getSession } from './services/authService';
-import { getMyTeam, getMyMember } from './services/teamService';
-import { getTeamActivities, subscribeToActivities } from './services/activityService';
-import { loginCommand, logoutCommand } from './commands/auth';
+import { TeamStateManager } from './services/teamStateManager';
+import { subscribeToActivities } from './services/activityService';
+import { loginCommand, logoutCommand, restoreLoginState } from './commands/auth';
 import { createTeamCommand, joinTeamCommand, leaveTeamCommand } from './commands/team';
 import { setStatusCommand } from './commands/status';
 import { TeamSyncSidebarProvider } from './views/sidebarProvider';
-import { startFileWatcher, setCurrentMember } from './watchers/fileWatcher';
+import { syncUI } from './views/syncUI';
+import { checkFileConflicts } from './views/conflictWarning';
+import { startFileWatcher } from './watchers/fileWatcher';
 
+let state: TeamStateManager;
 let sidebarProvider: TeamSyncSidebarProvider;
-let currentMemberId: string | null = null;
 let unsubscribe: (() => void) | null = null;
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -19,109 +20,64 @@ export async function activate(context: vscode.ExtensionContext) {
   sidebarProvider = new TeamSyncSidebarProvider();
   vscode.window.registerTreeDataProvider('teamSyncSidebar', sidebarProvider);
 
-  // コンテキストキーの初期値（ウェルカムビューの表示制御用）
-  vscode.commands.executeCommand('setContext', 'teamSync.loggedIn', false);
-  vscode.commands.executeCommand('setContext', 'teamSync.hasTeam', false);
+  // 状態管理
+  state = new TeamStateManager();
 
-  // 起動時にセッション確認(完了を待つだけ)
-  await checkLoginState();
+  // 起動時にセッション復元
+  await restoreLoginState(state, sidebarProvider);
+  startRealtime();
 
   // コマンド登録
   context.subscriptions.push(
     vscode.commands.registerCommand('team-sync.login', async () => {
-      await loginCommand(sidebarProvider);
-      await startRealtimeSubscription();
+      await loginCommand(state, sidebarProvider);
+      startRealtime();
     }),
-    vscode.commands.registerCommand('team-sync.logout', () => logoutCommand(sidebarProvider)),
+    vscode.commands.registerCommand('team-sync.logout', async () => {
+      await logoutCommand(state, sidebarProvider);
+      stopRealtime();
+    }),
     vscode.commands.registerCommand('team-sync.createTeam', async () => {
-      await createTeamCommand(sidebarProvider);
-      await startRealtimeSubscription();
+      await createTeamCommand(state, sidebarProvider);
+      startRealtime();
     }),
     vscode.commands.registerCommand('team-sync.joinTeam', async () => {
-      await joinTeamCommand(sidebarProvider);
-      await startRealtimeSubscription();
+      await joinTeamCommand(state, sidebarProvider);
+      startRealtime();
     }),
-    vscode.commands.registerCommand('team-sync.setStatus', () => {
-      setStatusCommand(currentMemberId ?? '');
+    vscode.commands.registerCommand('team-sync.setStatus', () => setStatusCommand(state)),
+    vscode.commands.registerCommand('team-sync.leaveTeam', async () => {
+      await leaveTeamCommand(state, sidebarProvider);
+      stopRealtime();
     }),
-    vscode.commands.registerCommand('team-sync.leaveTeam', () => leaveTeamCommand(sidebarProvider))
   );
 
   // ファイル監視開始
   startFileWatcher(context);
 }
 
-async function checkLoginState(): Promise<void> {
-  const session = await getSession();
-  if (session) {
-    const user = await getCurrentUser();
-    const username = user?.user_metadata?.user_name || 'ユーザー';
-    const avatarUrl = user?.user_metadata?.avatar_url || '';
-    sidebarProvider.setLoginState(true, { username, avatarUrl });
-    vscode.commands.executeCommand('setContext', 'teamSync.loggedIn', true);
+// Realtime購読を開始
+function startRealtime(): void {
+  const teamId = state.getTeamId();
+  if (!teamId) { return; }
 
-    // チーム情報も確認
-    const team = await getMyTeam();
-    if (team) {
-      sidebarProvider.setTeam(team.name);
-      vscode.commands.executeCommand('setContext', 'teamSync.hasTeam', true);
-
-      // メンバーの作業状況を取得してサイドバーに表示
-      const activities = await getTeamActivities(team.id);
-      sidebarProvider.setMembers(activities);
-
-      // リアルタイム購読開始 + メンバーID設定
-      await startRealtimeSubscription();
-    }
-  } else {
-    sidebarProvider.setLoginState(false);
-    vscode.commands.executeCommand('setContext', 'teamSync.loggedIn', false);
-    vscode.commands.executeCommand('setContext', 'teamSync.hasTeam', false);
-  }
-}
-
-// Realtime購読を開始する共通関数
-async function startRealtimeSubscription(): Promise<void> {
-  const team = await getMyTeam();
-  if (!team) { return; }
-
-  // 既存の購読があれば解除
-  if (unsubscribe) {
-    unsubscribe();
-    unsubscribe = null;
-  }
-
-  unsubscribe = subscribeToActivities(team.id, (updated) => {
-    sidebarProvider.setMembers(updated);
-
-    // 同一ファイル編集の警告
-    const myFile = vscode.window.activeTextEditor?.document.fileName;
-    if (myFile && currentMemberId) {
-      const others = updated.filter(
-        m => m.id !== currentMemberId && m.activity?.file_path === myFile
-      );
-      for (const other of others) {
-        vscode.window.showWarningMessage(
-          `${other.github_username} さんが ${myFile.split('/').pop()} を編集中です`
-        );
-      }
-    }
+  stopRealtime();
+  unsubscribe = subscribeToActivities(teamId, (updated) => {
+    state.setMembers(updated);
+    syncUI(state, sidebarProvider);
+    checkFileConflicts(updated, state.getMemberId());
   });
-
-  // メンバーIDも設定
-  const member = await getMyMember();
-  if (member) {
-    currentMemberId = member.id;
-    setCurrentMember(member.id);
-  }
 }
 
-// 拡張機能を無効化した際に監視中ならリセット
-export function deactivate() {
-  // リアルタイム購読を解除
+// Realtime購読を解除
+function stopRealtime(): void {
   if (unsubscribe) {
     unsubscribe();
     unsubscribe = null;
   }
 }
 
+// 拡張機能を無効化した際のクリーンアップ
+export function deactivate() {
+  stopRealtime();
+}

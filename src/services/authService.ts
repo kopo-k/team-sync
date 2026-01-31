@@ -161,6 +161,16 @@ export async function getCurrentUser() {
   return user;
 }
 
+// user_metadata を隠蔽し、クリーンなユーザー情報を返す
+export async function getUserInfo(): Promise<{ username: string; avatarUrl: string } | null> {
+  const user = await getCurrentUser();
+  if (!user) { return null; }
+  return {
+    username: user.user_metadata?.user_name || 'ユーザー',
+    avatarUrl: user.user_metadata?.avatar_url || '',
+  };
+}
+
 export async function getSession() {
   const supabase = getSupabaseClient();
   const { data: { session } } = await supabase.auth.getSession();
