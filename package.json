@@ -19,7 +19,8 @@
       },
       {
         "command": "team-sync.logout",
-        "title": "TeamSync: ログアウト"
+        "title": "TeamSync: ログアウト",
+        "icon": "$(log-out)"
       },
       {
         "command": "team-sync.createTeam",
@@ -37,7 +38,7 @@
       {
         "command": "team-sync.leaveTeam",
         "title": "TeamSync: チームを退出",
-        "icon": "$(sign-out)"
+        "icon": "$(log-out)"
       }
     ],
     "viewsContainers": {
@@ -78,7 +79,8 @@
         },
         {
           "command": "team-sync.leaveTeam",
-          "when": "view == teamSyncSidebar && teamSync.hasTeam"
+          "when": "view == teamSyncSidebar && teamSync.hasTeam",
+          "group": "navigation"
         },
         {
           "command": "team-sync.logout",
