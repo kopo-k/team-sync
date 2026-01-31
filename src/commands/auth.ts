@@ -15,11 +15,13 @@ export async function loginCommand(sidebarProvider: TeamSyncSidebarProvider): Pr
     const avatarUrl = user?.user_metadata?.avatar_url || '';
 
     sidebarProvider.setLoginState(true, { username, avatarUrl });
+    vscode.commands.executeCommand('setContext', 'teamSync.loggedIn', true);
 
     // チーム情報も確認
     const team = await getMyTeam();
     if (team) {
       sidebarProvider.setTeam(team.name);
+      vscode.commands.executeCommand('setContext', 'teamSync.hasTeam', true);
 
       // メンバーの作業状況を取得してサイドバーに表示
       const activities = await getTeamActivities(team.id);
@@ -44,6 +46,8 @@ export async function logoutCommand(sidebarProvider: TeamSyncSidebarProvider): P
     await signOut();
     sidebarProvider.setLoginState(false);
     sidebarProvider.setTeam(null);
+    vscode.commands.executeCommand('setContext', 'teamSync.loggedIn', false);
+    vscode.commands.executeCommand('setContext', 'teamSync.hasTeam', false);
     vscode.window.showInformationMessage('ログアウトしました');
   } catch (error) {
     vscode.window.showErrorMessage('ログアウトに失敗しました');

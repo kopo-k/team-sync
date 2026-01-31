@@ -17,6 +17,7 @@ export async function createTeamCommand(sidebarProvider: TeamSyncSidebarProvider
     const team = await createTeam(name);
     if (team) {
       sidebarProvider.setTeam(team.name);
+      vscode.commands.executeCommand('setContext', 'teamSync.hasTeam', true);
 
       // メンバーの作業状況を取得してサイドバーに表示
       const activities = await getTeamActivities(team.id);
@@ -49,6 +50,7 @@ export async function joinTeamCommand(sidebarProvider: TeamSyncSidebarProvider):
     const team = await joinTeam(code);
     if (team) {
       sidebarProvider.setTeam(team.name);
+      vscode.commands.executeCommand('setContext', 'teamSync.hasTeam', true);
 
       // メンバーの作業状況を取得してサイドバーに表示
       const activities = await getTeamActivities(team.id);
@@ -85,6 +87,7 @@ export async function leaveTeamCommand(sidebarProvider: TeamSyncSidebarProvider)
     await leaveTeam(team.id);
     sidebarProvider.setTeam(null);
     sidebarProvider.setMembers([]);
+    vscode.commands.executeCommand('setContext', 'teamSync.hasTeam', false);
     vscode.window.showInformationMessage(`チーム「${team.name}」から退出しました`);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'チームの退出に失敗しました';

@@ -19,6 +19,10 @@ export async function activate(context: vscode.ExtensionContext) {
   sidebarProvider = new TeamSyncSidebarProvider();
   vscode.window.registerTreeDataProvider('teamSyncSidebar', sidebarProvider);
 
+  // コンテキストキーの初期値（ウェルカムビューの表示制御用）
+  vscode.commands.executeCommand('setContext', 'teamSync.loggedIn', false);
+  vscode.commands.executeCommand('setContext', 'teamSync.hasTeam', false);
+
   // 起動時にセッション確認(完了を待つだけ)
   await checkLoginState();
 
@@ -34,16 +38,14 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('team-sync.leaveTeam', () => leaveTeamCommand(sidebarProvider))
   );
 
-  // コンテキストキーを設定（ウェルカムビューの表示制御用）
-  vscode.commands.executeCommand('setContext', 'teamSync.loggedIn', false);
-  vscode.commands.executeCommand('setContext', 'teamSync.hasTeam', false);
-
   // ファイル監視開始
   startFileWatcher(context);
 }
 
 async function checkLoginState(): Promise<void> {
+  console.log('[TeamSync] checkLoginState 開始');
   const session = await getSession();
+  console.log('[TeamSync] session:', session ? 'あり' : 'なし');
   if (session) {
     const user = await getCurrentUser();
     const username = user?.user_metadata?.user_name || 'ユーザー';
@@ -53,6 +55,7 @@ async function checkLoginState(): Promise<void> {
 
     // チーム情報も確認
     const team = await getMyTeam();
+    console.log('[TeamSync] team:', team ? team.name : 'なし');
     if (team) {
       sidebarProvider.setTeam(team.name);
       vscode.commands.executeCommand('setContext', 'teamSync.hasTeam', true);
@@ -61,8 +64,12 @@ async function checkLoginState(): Promise<void> {
       const activities = await getTeamActivities(team.id);
       sidebarProvider.setMembers(activities);
 
+      console.log('[TeamSync] activities 取得完了:', activities.length, '件');
+
       // リアルタイム購読開始
+      console.log('[TeamSync] Realtime 購読開始...');
       unsubscribe = subscribeToActivities(team.id, (updated) => {
+        console.log('[TeamSync] Realtime コールバック発火:', updated.length, '件');
         sidebarProvider.setMembers(updated);
 
         // 同一ファイル編集の警告
