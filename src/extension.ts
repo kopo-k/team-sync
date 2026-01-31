@@ -28,10 +28,19 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // コマンド登録
   context.subscriptions.push(
-    vscode.commands.registerCommand('team-sync.login', () => loginCommand(sidebarProvider)),
+    vscode.commands.registerCommand('team-sync.login', async () => {
+      await loginCommand(sidebarProvider);
+      await startRealtimeSubscription();
+    }),
     vscode.commands.registerCommand('team-sync.logout', () => logoutCommand(sidebarProvider)),
-    vscode.commands.registerCommand('team-sync.createTeam', () => createTeamCommand(sidebarProvider)),
-    vscode.commands.registerCommand('team-sync.joinTeam', () => joinTeamCommand(sidebarProvider)),
+    vscode.commands.registerCommand('team-sync.createTeam', async () => {
+      await createTeamCommand(sidebarProvider);
+      await startRealtimeSubscription();
+    }),
+    vscode.commands.registerCommand('team-sync.joinTeam', async () => {
+      await joinTeamCommand(sidebarProvider);
+      await startRealtimeSubscription();
+    }),
     vscode.commands.registerCommand('team-sync.setStatus', () => {
       setStatusCommand(currentMemberId ?? '');
     }),
@@ -64,39 +73,49 @@ async function checkLoginState(): Promise<void> {
       const activities = await getTeamActivities(team.id);
       sidebarProvider.setMembers(activities);
 
-      console.log('[TeamSync] activities 取得完了:', activities.length, '件');
-
-      // リアルタイム購読開始
-      console.log('[TeamSync] Realtime 購読開始...');
-      unsubscribe = subscribeToActivities(team.id, (updated) => {
-        console.log('[TeamSync] Realtime コールバック発火:', updated.length, '件');
-        sidebarProvider.setMembers(updated);
-
-        // 同一ファイル編集の警告
-        const myFile = vscode.window.activeTextEditor?.document.fileName;
-        if (myFile && currentMemberId) {
-          const others = updated.filter(
-            m => m.id !== currentMemberId && m.activity?.file_path === myFile
-          );
-          for (const other of others) {
-            vscode.window.showWarningMessage(
-              `${other.github_username} さんが ${myFile.split('/').pop()} を編集中です`
-            );
-          }
-        }
-      });
-    }
-
-    // メンバーIDを保存
-    const member = await getMyMember();
-    if (member) {
-      currentMemberId = member.id;
-      setCurrentMember(member.id);
+      // リアルタイム購読開始 + メンバーID設定
+      await startRealtimeSubscription();
     }
   } else {
     sidebarProvider.setLoginState(false);
     vscode.commands.executeCommand('setContext', 'teamSync.loggedIn', false);
     vscode.commands.executeCommand('setContext', 'teamSync.hasTeam', false);
+  }
+}
+
+// Realtime購読を開始する共通関数
+async function startRealtimeSubscription(): Promise<void> {
+  const team = await getMyTeam();
+  if (!team) { return; }
+
+  // 既存の購読があれば解除
+  if (unsubscribe) {
+    unsubscribe();
+    unsubscribe = null;
+  }
+
+  unsubscribe = subscribeToActivities(team.id, (updated) => {
+    sidebarProvider.setMembers(updated);
+
+    // 同一ファイル編集の警告
+    const myFile = vscode.window.activeTextEditor?.document.fileName;
+    if (myFile && currentMemberId) {
+      const others = updated.filter(
+        m => m.id !== currentMemberId && m.activity?.file_path === myFile
+      );
+      for (const other of others) {
+        vscode.window.showWarningMessage(
+          `${other.github_username} さんが ${myFile.split('/').pop()} を編集中です`
+        );
+      }
+    }
+  });
+
+  // メンバーIDも設定
+  const member = await getMyMember();
+  if (member) {
+    currentMemberId = member.id;
+    setCurrentMember(member.id);
   }
 }
 
