@@ -4,7 +4,6 @@ import { getTeamActivities } from '../services/activityService';
 import { TeamStateManager } from '../services/teamStateManager';
 import { TeamSyncSidebarProvider } from '../views/sidebarProvider';
 import { syncUI } from '../views/syncUI';
-import { setCurrentTeam } from '../watchers/fileWatcher';
 
 export async function createTeamCommand(state: TeamStateManager, sidebar: TeamSyncSidebarProvider): Promise<void> {
   const name = await vscode.window.showInputBox({
@@ -21,7 +20,6 @@ export async function createTeamCommand(state: TeamStateManager, sidebar: TeamSy
     if (team) {
       // 状態更新
       state.setTeam(team.id, team.name);
-      setCurrentTeam(team.id);
       const activities = await getTeamActivities(team.id);
       state.setMembers(activities);
 
@@ -56,7 +54,6 @@ export async function joinTeamCommand(state: TeamStateManager, sidebar: TeamSync
     if (team) {
       // 状態更新
       state.setTeam(team.id, team.name);
-      setCurrentTeam(team.id);
       const activities = await getTeamActivities(team.id);
       state.setMembers(activities);
 
@@ -96,7 +93,6 @@ export async function leaveTeamCommand(state: TeamStateManager, sidebar: TeamSyn
 
     // 状態更新
     state.clearTeam();
-    setCurrentTeam(null);
 
     // UI反映
     syncUI(state, sidebar);

@@ -5,8 +5,6 @@ import { getTeamActivities } from '../services/activityService';
 import { TeamStateManager } from '../services/teamStateManager';
 import { TeamSyncSidebarProvider } from '../views/sidebarProvider';
 import { syncUI } from '../views/syncUI';
-import { setCurrentMember, setCurrentTeam } from '../watchers/fileWatcher';
-
 // ログイン済みセッションの状態を復元する共通処理
 // loginCommand と restoreLoginState の両方で使う
 async function setupLoggedInState(state: TeamStateManager, sidebar: TeamSyncSidebarProvider): Promise<void> {
@@ -20,7 +18,6 @@ async function setupLoggedInState(state: TeamStateManager, sidebar: TeamSyncSide
   const team = await getMyTeam();
   if (team) {
     state.setTeam(team.id, team.name);
-    setCurrentTeam(team.id);
     const activities = await getTeamActivities(team.id);
     state.setMembers(activities);
   }
@@ -29,7 +26,6 @@ async function setupLoggedInState(state: TeamStateManager, sidebar: TeamSyncSide
   const member = await getMyMember();
   if (member) {
     state.setMemberId(member.id);
-    setCurrentMember(member.id);
   }
 
   // UI反映

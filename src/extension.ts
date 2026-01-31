@@ -53,7 +53,7 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   // ファイル監視開始
-  startFileWatcher(context);
+  startFileWatcher(context, state);
 }
 
 // Realtime購読を開始
