@@ -1,39 +1,58 @@
 import * as vscode from 'vscode';
-import { signInWithGitHub, signOut, getCurrentUser } from '../services/authService';
+import { signInWithGitHub, signOut, getSession, getUserInfo } from '../services/authService';
 import { getMyTeam, getMyMember } from '../services/teamService';
 import { getTeamActivities } from '../services/activityService';
+import { TeamStateManager } from '../services/teamStateManager';
 import { TeamSyncSidebarProvider } from '../views/sidebarProvider';
-import { setCurrentMember } from '../watchers/fileWatcher';
+import { syncUI } from '../views/syncUI';
+import { setCurrentMember, setCurrentTeam } from '../watchers/fileWatcher';
 
-export async function loginCommand(sidebarProvider: TeamSyncSidebarProvider): Promise<void> {
+// ログイン済みセッションの状態を復元する共通処理
+// loginCommand と restoreLoginState の両方で使う
+async function setupLoggedInState(state: TeamStateManager, sidebar: TeamSyncSidebarProvider): Promise<void> {
+  const userInfo = await getUserInfo();
+  if (!userInfo) { return; }
+
+  // 状態更新
+  state.setLoggedIn(userInfo.username, userInfo.avatarUrl);
+
+  // チーム情報も確認
+  const team = await getMyTeam();
+  if (team) {
+    state.setTeam(team.id, team.name);
+    setCurrentTeam(team.id);
+    const activities = await getTeamActivities(team.id);
+    state.setMembers(activities);
+  }
+
+  // メンバーIDを設定
+  const member = await getMyMember();
+  if (member) {
+    state.setMemberId(member.id);
+    setCurrentMember(member.id);
+  }
+
+  // UI反映
+  syncUI(state, sidebar);
+}
+
+// 起動時のセッション復元（extension.ts から呼ばれる）
+export async function restoreLoginState(state: TeamStateManager, sidebar: TeamSyncSidebarProvider): Promise<void> {
+  const session = await getSession();
+  if (session) {
+    await setupLoggedInState(state, sidebar);
+  } else {
+    syncUI(state, sidebar);
+  }
+}
+
+export async function loginCommand(state: TeamStateManager, sidebar: TeamSyncSidebarProvider): Promise<void> {
   try {
     vscode.window.showInformationMessage('ブラウザでGitHub認証を行ってください...');
     await signInWithGitHub();
+    await setupLoggedInState(state, sidebar);
 
-    const user = await getCurrentUser();
-    const username = user?.user_metadata?.user_name || 'ユーザー';
-    const avatarUrl = user?.user_metadata?.avatar_url || '';
-
-    sidebarProvider.setLoginState(true, { username, avatarUrl });
-    vscode.commands.executeCommand('setContext', 'teamSync.loggedIn', true);
-
-    // チーム情報も確認
-    const team = await getMyTeam();
-    if (team) {
-      sidebarProvider.setTeam(team.name);
-      vscode.commands.executeCommand('setContext', 'teamSync.hasTeam', true);
-
-      // メンバーの作業状況を取得してサイドバーに表示
-      const activities = await getTeamActivities(team.id);
-      sidebarProvider.setMembers(activities);
-    }
-
-    // メンバーIDを設定
-    const member = await getMyMember();
-    if (member) {
-      setCurrentMember(member.id);
-    }
-
+    const username = state.getUsername();
     vscode.window.showInformationMessage(`ログインしました: ${username}`);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'ログインに失敗しました';
@@ -41,13 +60,11 @@ export async function loginCommand(sidebarProvider: TeamSyncSidebarProvider): Pr
   }
 }
 
-export async function logoutCommand(sidebarProvider: TeamSyncSidebarProvider): Promise<void> {
+export async function logoutCommand(state: TeamStateManager, sidebar: TeamSyncSidebarProvider): Promise<void> {
   try {
     await signOut();
-    sidebarProvider.setLoginState(false);
-    sidebarProvider.setTeam(null);
-    vscode.commands.executeCommand('setContext', 'teamSync.loggedIn', false);
-    vscode.commands.executeCommand('setContext', 'teamSync.hasTeam', false);
+    state.reset();
+    syncUI(state, sidebar);
     vscode.window.showInformationMessage('ログアウトしました');
   } catch (error) {
     vscode.window.showErrorMessage('ログアウトに失敗しました');
