@@ -152,6 +152,7 @@ export async function getTeamMembers(teamId: string): Promise<Member[]> {
     .eq('team_id', teamId);
 
   if (error) {
+    console.error('[TeamSync] メンバー取得エラー:', error.message);
     return [];
   }
 
