@@ -52,9 +52,7 @@ export async function activate(context: vscode.ExtensionContext) {
 }
 
 async function checkLoginState(): Promise<void> {
-  console.log('[TeamSync] checkLoginState 開始');
   const session = await getSession();
-  console.log('[TeamSync] session:', session ? 'あり' : 'なし');
   if (session) {
     const user = await getCurrentUser();
     const username = user?.user_metadata?.user_name || 'ユーザー';
@@ -64,7 +62,6 @@ async function checkLoginState(): Promise<void> {
 
     // チーム情報も確認
     const team = await getMyTeam();
-    console.log('[TeamSync] team:', team ? team.name : 'なし');
     if (team) {
       sidebarProvider.setTeam(team.name);
       vscode.commands.executeCommand('setContext', 'teamSync.hasTeam', true);
