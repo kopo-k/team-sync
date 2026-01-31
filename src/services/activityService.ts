@@ -87,13 +87,16 @@ export function subscribeToActivities(
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'activities' },
-      async () => {
+      async (payload) => {
+        console.log('[TeamSync] Realtime 変更検知:', payload);
         // 変更があったらチーム全体の最新データを再取得
         const activities = await getTeamActivities(teamId);
         callback(activities);
       }
     )
-    .subscribe();
+    .subscribe((status) => {
+      console.log('[TeamSync] Realtime 購読ステータス:', status);
+    });
 
   // 購読解除関数を返す
   return () => {
