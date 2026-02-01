@@ -104,7 +104,7 @@ class MemberItem extends vscode.TreeItem {
 
     const filePath = member.activity?.file_path;
 
-    this.description = filePath ?? '作業なし';
+    this.description = filePath ? `作業中: ${filePath}` : '作業なし';
     this.tooltip = new vscode.MarkdownString();
     this.tooltip.appendMarkdown(`**${member.github_username}**\n\n`);
     if (member.activity?.status_message) {
