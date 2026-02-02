@@ -7,6 +7,7 @@ export class TeamStateManager {
   private _avatarUrl: string | null = null;
   private _teamId: string | null = null;
   private _teamName: string | null = null;
+  private _inviteCode: string | null = null;
   private _currentMemberId: string | null = null;
   private _members: MemberWithActivity[] = [];
 
@@ -16,6 +17,7 @@ export class TeamStateManager {
   getAvatarUrl(): string | null { return this._avatarUrl; }
   getTeamId(): string | null { return this._teamId; }
   getTeamName(): string | null { return this._teamName; }
+  getInviteCode(): string | null { return this._inviteCode; }
   getMemberId(): string | null { return this._currentMemberId; }
   getMembers(): MemberWithActivity[] { return this._members; }
 
@@ -26,9 +28,10 @@ export class TeamStateManager {
     this._avatarUrl = avatarUrl;
   }
 
-  setTeam(teamId: string, teamName: string): void {
+  setTeam(teamId: string, teamName: string, inviteCode: string): void {
     this._teamId = teamId;
     this._teamName = teamName;
+    this._inviteCode = inviteCode;
   }
 
   setMemberId(memberId: string): void {
@@ -42,6 +45,7 @@ export class TeamStateManager {
   clearTeam(): void {
     this._teamId = null;
     this._teamName = null;
+    this._inviteCode = null;
     this._members = [];
   }
 
@@ -52,6 +56,7 @@ export class TeamStateManager {
     this._avatarUrl = null;
     this._teamId = null;
     this._teamName = null;
+    this._inviteCode = null;
     this._currentMemberId = null;
     this._members = [];
   }

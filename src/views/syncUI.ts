@@ -10,15 +10,10 @@ export function syncUI(state: TeamStateManager, sidebar: TeamSyncSidebarProvider
   vscode.commands.executeCommand('setContext', 'teamSync.hasTeam', state.getTeamId() !== null);
 
   // サイドバー更新
-  if (state.isLoggedIn()) {
-    sidebar.setLoginState(true, {
-      username: state.getUsername() || '',
-      avatarUrl: state.getAvatarUrl() || '',
-    });
-  } else {
-    sidebar.setLoginState(false);
-  }
-
+  sidebar.setLoginState(state.isLoggedIn());
   sidebar.setTeam(state.getTeamName());
   sidebar.setMembers(state.getMembers());
+
+  // ビュータイトルをチーム名に動的変更
+  sidebar.setTitle(state.getTeamName() || 'メンバー');
 }

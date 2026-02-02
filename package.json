@@ -39,6 +39,10 @@
         "command": "team-sync.leaveTeam",
         "title": "TeamSync: チームを退出",
         "icon": "$(log-out)"
+      },
+      {
+        "command": "team-sync.copyInviteCode",
+        "title": "TeamSync: 招待コードをコピー"
       }
     ],
     "viewsContainers": {
@@ -55,6 +59,11 @@
         {
           "id": "teamSyncSidebar",
           "name": "メンバー"
+        },
+        {
+          "id": "teamSyncInvite",
+          "name": "チーム招待",
+          "when": "teamSync.hasTeam"
         }
       ]
     },
@@ -68,6 +77,11 @@
         "view": "teamSyncSidebar",
         "contents": "チームに参加して始めましょう。\n[チームを作成](command:team-sync.createTeam)\n[チームに参加](command:team-sync.joinTeam)",
         "when": "teamSync.loggedIn && !teamSync.hasTeam"
+      },
+      {
+        "view": "teamSyncInvite",
+        "contents": "メンバーを招待するには\n招待コードを共有してください\n[招待コードをコピー](command:team-sync.copyInviteCode)",
+        "when": "teamSync.hasTeam"
       }
     ],
     "menus": {

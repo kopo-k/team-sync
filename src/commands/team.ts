@@ -19,7 +19,7 @@ export async function createTeamCommand(state: TeamStateManager, sidebar: TeamSy
     const team = await createTeam(name);
     if (team) {
       // 状態更新
-      state.setTeam(team.id, team.name);
+      state.setTeam(team.id, team.name, team.invite_code);
       const activities = await getTeamActivities(team.id);
       state.setMembers(activities);
 
@@ -53,7 +53,7 @@ export async function joinTeamCommand(state: TeamStateManager, sidebar: TeamSync
     const team = await joinTeam(code);
     if (team) {
       // 状態更新
-      state.setTeam(team.id, team.name);
+      state.setTeam(team.id, team.name, team.invite_code);
       const activities = await getTeamActivities(team.id);
       state.setMembers(activities);
 

@@ -16,9 +16,18 @@ let unsubscribe: (() => void) | null = null;
 export async function activate(context: vscode.ExtensionContext) {
   console.log('TeamSync is now active!');
 
-  // サイドバー
+  // サイドバー（メンバー一覧）
   sidebarProvider = new TeamSyncSidebarProvider();
-  vscode.window.registerTreeDataProvider('teamSyncSidebar', sidebarProvider);
+  const treeView = vscode.window.createTreeView('teamSyncSidebar', {
+    treeDataProvider: sidebarProvider,
+  });
+  sidebarProvider.setTreeView(treeView);
+
+  // 招待ビュー（空のプロバイダー。viewsWelcome でボタンを表示）
+  vscode.window.registerTreeDataProvider('teamSyncInvite', {
+    getTreeItem: () => new vscode.TreeItem(''),
+    getChildren: () => [],
+  });
 
   // 状態管理
   state = new TeamStateManager();
@@ -49,6 +58,14 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('team-sync.leaveTeam', async () => {
       await leaveTeamCommand(state, sidebarProvider);
       stopRealtime();
+    }),
+    // 招待コードをクリップボードにコピー
+    vscode.commands.registerCommand('team-sync.copyInviteCode', async () => {
+      const inviteCode = state.getInviteCode();
+      if (inviteCode) {
+        await vscode.env.clipboard.writeText(inviteCode);
+        vscode.window.showInformationMessage('招待コードをクリップボードにコピーしました');
+      }
     }),
   );
 

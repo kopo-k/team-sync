@@ -1,15 +1,13 @@
 import * as vscode from 'vscode';
 import { MemberWithActivity } from '../types';
 
-type TreeItem = StatusItem | MemberItem;
-
-export class TeamSyncSidebarProvider implements vscode.TreeDataProvider<TreeItem> {
+export class TeamSyncSidebarProvider implements vscode.TreeDataProvider<MemberItem> {
   // クラス内部でのみ
-  private _onDidChangeTreeData = new vscode.EventEmitter<TreeItem | undefined>();
+  private _onDidChangeTreeData = new vscode.EventEmitter<MemberItem | undefined>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
+  private _treeView: vscode.TreeView<MemberItem> | null = null;
   private isLoggedIn = false;
-  private currentUser: { username: string; avatarUrl: string } | null = null;
   private teamName: string | null = null;
   private members: MemberWithActivity[] = [];
 
@@ -17,10 +15,21 @@ export class TeamSyncSidebarProvider implements vscode.TreeDataProvider<TreeItem
     this._onDidChangeTreeData.fire(undefined);
   }
 
+  // TreeViewの参照を保持（タイトル変更用）
+  setTreeView(treeView: vscode.TreeView<MemberItem>): void {
+    this._treeView = treeView;
+  }
+
+  // ビューのタイトルを動的に変更
+  setTitle(title: string): void {
+    if (this._treeView) {
+      this._treeView.title = title;
+    }
+  }
+
   // ログイン状態の設定
-  setLoginState(isLoggedIn: boolean, user?: { username: string; avatarUrl: string }): void {
+  setLoginState(isLoggedIn: boolean): void {
     this.isLoggedIn = isLoggedIn;
-    this.currentUser = user || null;
     this.refresh();
   }
 
@@ -37,64 +46,21 @@ export class TeamSyncSidebarProvider implements vscode.TreeDataProvider<TreeItem
   }
 
 
-  getTreeItem(element: TreeItem): vscode.TreeItem {
+  getTreeItem(element: MemberItem): vscode.TreeItem {
     return element;
   }
 
   //サイドバーを開いた瞬間に呼ばれる
   //refresh()が呼ばれたときにも呼ばれる
-  getChildren(): TreeItem[] {
+  getChildren(): MemberItem[] {
     // 未ログイン・チーム未参加時は空配列を返す
     // → package.json の viewsWelcome でボタンを表示する
-    if (!this.isLoggedIn) {
+    if (!this.isLoggedIn || !this.teamName) {
       return [];
     }
 
-    if (!this.teamName) {
-      return [];
-    }
-
-    const items: TreeItem[] = [];
-
-    // ユーザー情報があれば表示
-    if (this.currentUser) {
-      items.push(new StatusItem(
-        this.currentUser.username,
-        'ログイン中',
-        'account',
-        this.currentUser.avatarUrl
-      ));
-    }
-
-    items.push(new StatusItem(this.teamName, 'チーム', 'organization'));
-
-    // メンバー一覧
-    if (this.members.length === 0) {
-      items.push(new StatusItem('メンバーなし', '', 'info'));
-    } else {
-      this.members.forEach(member => {
-        items.push(new MemberItem(member));
-      });
-    }
-
-    return items;
-  }
-}
-
-class StatusItem extends vscode.TreeItem {
-  constructor(
-    label: string,
-    description: string,
-    icon: string,
-    avatarUrl?: string
-  ) {
-    super(label, vscode.TreeItemCollapsibleState.None);
-    this.description = description;
-    if (avatarUrl) {
-      this.iconPath = vscode.Uri.parse(avatarUrl);
-    } else {
-      this.iconPath = new vscode.ThemeIcon(icon);
-    }
+    // メンバー一覧のみ返す
+    return this.members.map(member => new MemberItem(member));
   }
 }
 

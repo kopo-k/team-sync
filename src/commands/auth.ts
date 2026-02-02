@@ -17,7 +17,7 @@ async function setupLoggedInState(state: TeamStateManager, sidebar: TeamSyncSide
   // チーム情報も確認
   const team = await getMyTeam();
   if (team) {
-    state.setTeam(team.id, team.name);
+    state.setTeam(team.id, team.name, team.invite_code);
     const activities = await getTeamActivities(team.id);
     state.setMembers(activities);
   }
