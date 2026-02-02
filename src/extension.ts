@@ -23,12 +23,6 @@ export async function activate(context: vscode.ExtensionContext) {
   });
   sidebarProvider.setTreeView(treeView);
 
-  // 招待ビュー（空のプロバイダー。viewsWelcome でボタンを表示）
-  vscode.window.registerTreeDataProvider('teamSyncInvite', {
-    getTreeItem: () => new vscode.TreeItem(''),
-    getChildren: () => [],
-  });
-
   // 状態管理
   state = new TeamStateManager();
 
