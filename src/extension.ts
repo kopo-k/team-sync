@@ -91,6 +91,10 @@ async function handleWebviewMessage(message: WebviewMessage): Promise<void> {
 
     // Webview 内のインライン編集から直接 DB 更新
     case 'saveStatus': {
+      // 型と長さの検証
+      if (typeof message.status !== 'string' || message.status.length > 500) {
+        break;
+      }
       const memberId = state.getMemberId();
       const teamId = state.getTeamId();
       if (!memberId || !teamId) { break; }

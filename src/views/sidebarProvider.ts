@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as crypto from 'crypto';
 import { MemberWithActivity } from '../types';
 
 // Webview に送信する状態
@@ -68,7 +69,7 @@ export class TeamSyncSidebarProvider implements vscode.WebviewViewProvider {
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'none'; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}'; img-src ${webview.cspSource} https:;">
+    content="default-src 'none'; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}'; img-src ${webview.cspSource} https://avatars.githubusercontent.com;">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style nonce="${nonce}">${getStyles()}</style>
 </head>
@@ -82,12 +83,7 @@ ${getBody()}
 
 // ランダムな nonce を生成（CSP 用）
 function getNonce(): string {
-  let text = '';
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  for (let i = 0; i < 32; i++) {
-    text += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return text;
+  return crypto.randomBytes(16).toString('hex');
 }
 
 function getStyles(): string {
