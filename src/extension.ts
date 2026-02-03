@@ -1,10 +1,10 @@
 import * as vscode from 'vscode';
 import { TeamStateManager } from './services/teamStateManager';
-import { subscribeToActivities } from './services/activityService';
+import { subscribeToActivities, updateActivity } from './services/activityService';
 import { loginCommand, logoutCommand, restoreLoginState } from './commands/auth';
 import { createTeamCommand, joinTeamCommand, leaveTeamCommand } from './commands/team';
 import { setStatusCommand } from './commands/status';
-import { TeamSyncSidebarProvider } from './views/sidebarProvider';
+import { TeamSyncSidebarProvider, WebviewMessage } from './views/sidebarProvider';
 import { syncUI } from './views/syncUI';
 import { checkFileConflicts } from './views/conflictWarning';
 import { startFileWatcher } from './watchers/fileWatcher';
@@ -16,21 +16,20 @@ let unsubscribe: (() => void) | null = null;
 export async function activate(context: vscode.ExtensionContext) {
   console.log('TeamSync is now active!');
 
-  // サイドバー（メンバー一覧）
-  sidebarProvider = new TeamSyncSidebarProvider();
-  const treeView = vscode.window.createTreeView('teamSyncSidebar', {
-    treeDataProvider: sidebarProvider,
-  });
-  sidebarProvider.setTreeView(treeView);
-
   // 状態管理
   state = new TeamStateManager();
+
+  // サイドバー（Webview）
+  sidebarProvider = new TeamSyncSidebarProvider(handleWebviewMessage);
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider('teamSyncSidebar', sidebarProvider)
+  );
 
   // 起動時にセッション復元
   await restoreLoginState(state, sidebarProvider);
   startRealtime();
 
-  // コマンド登録
+  // コマンド登録（コマンドパレット + view/title メニュー用）
   context.subscriptions.push(
     vscode.commands.registerCommand('team-sync.login', async () => {
       await loginCommand(state, sidebarProvider);
@@ -65,6 +64,44 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // ファイル監視開始
   startFileWatcher(context, state);
+}
+
+// Webview → Extension のメッセージハンドラ
+async function handleWebviewMessage(message: WebviewMessage): Promise<void> {
+  switch (message.type) {
+    // 既存コマンドに委譲
+    case 'login':
+      await vscode.commands.executeCommand('team-sync.login');
+      break;
+    case 'createTeam':
+      await vscode.commands.executeCommand('team-sync.createTeam');
+      break;
+    case 'joinTeam':
+      await vscode.commands.executeCommand('team-sync.joinTeam');
+      break;
+    case 'leaveTeam':
+      await vscode.commands.executeCommand('team-sync.leaveTeam');
+      break;
+    case 'logout':
+      await vscode.commands.executeCommand('team-sync.logout');
+      break;
+    case 'copyInviteCode':
+      await vscode.commands.executeCommand('team-sync.copyInviteCode');
+      break;
+
+    // Webview 内のインライン編集から直接 DB 更新
+    case 'saveStatus': {
+      const memberId = state.getMemberId();
+      const teamId = state.getTeamId();
+      if (!memberId || !teamId) { break; }
+      const editor = vscode.window.activeTextEditor;
+      const filePath = editor
+        ? vscode.workspace.asRelativePath(editor.document.fileName)
+        : '';
+      await updateActivity(memberId, teamId, filePath, message.status);
+      break;
+    }
+  }
 }
 
 // Realtime購読を開始

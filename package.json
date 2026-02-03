@@ -58,22 +58,11 @@
       "teamSync": [
         {
           "id": "teamSyncSidebar",
-          "name": "メンバー"
+          "name": "メンバー",
+          "type": "webview"
         }
       ]
     },
-    "viewsWelcome": [
-      {
-        "view": "teamSyncSidebar",
-        "contents": "TeamSync を始めましょう。\n[ログイン](command:team-sync.login)",
-        "when": "!teamSync.loggedIn"
-      },
-      {
-        "view": "teamSyncSidebar",
-        "contents": "チームに参加して始めましょう。\n[チームを作成](command:team-sync.createTeam)\n[チームに参加](command:team-sync.joinTeam)",
-        "when": "teamSync.loggedIn && !teamSync.hasTeam"
-      }
-    ],
     "menus": {
       "view/title": [
         {
