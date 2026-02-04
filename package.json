@@ -2,7 +2,8 @@
   "name": "team-sync",
   "displayName": "TeamSync",
   "description": "チーム開発のリアルタイム共有ツール",
-  "version": "0.0.1",
+  "version": "0.1.0",
+  "publisher": "tora1025",
   "engines": {
     "vscode": "^1.108.1"
   },
