@@ -14,8 +14,6 @@ let sidebarProvider: TeamSyncSidebarProvider;
 let unsubscribe: (() => void) | null = null;
 
 export async function activate(context: vscode.ExtensionContext) {
-  console.log('TeamSync is now active!');
-
   // 状態管理
   state = new TeamStateManager();
 
