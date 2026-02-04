@@ -10,7 +10,9 @@ export function startFileWatcher(context: vscode.ExtensionContext, state: TeamSt
       const teamId = state.getTeamId();
       if (editor && memberId && teamId) {
         const filePath = vscode.workspace.asRelativePath(editor.document.fileName);
-        updateActivity(memberId, teamId, filePath).catch(console.error);
+        updateActivity(memberId, teamId, filePath).catch(err => {
+          console.error('[TeamSync] updateActivity error:', err);
+        });
       }
     })
   );

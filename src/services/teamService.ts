@@ -14,11 +14,12 @@ function generateInviteCode(): string {
 }
 
 // ユーザー情報を抽出
-function extractUserInfo(user: { id: string; user_metadata?: Record<string, any> }) {
+function extractUserInfo(user: { id: string; user_metadata?: Record<string, unknown> }) {
   return {
-    githubId: user.user_metadata?.provider_id || user.id,
-    githubUsername: user.user_metadata?.user_name || 'unknown',
-    avatarUrl: user.user_metadata?.avatar_url || '',
+    userId: user.id, // Supabase の user_id（auth.uid() と一致）
+    githubId: String(user.user_metadata?.provider_id || user.id),
+    githubUsername: String(user.user_metadata?.user_name || 'unknown'),
+    avatarUrl: String(user.user_metadata?.avatar_url || ''),
   };
 }
 
@@ -45,11 +46,12 @@ export async function createTeam(name: string): Promise<Team | null> {
   }
 
   // 作成者をメンバーとして追加
-  const { githubId, githubUsername, avatarUrl } = extractUserInfo(user);
+  const { userId, githubId, githubUsername, avatarUrl } = extractUserInfo(user);
   const { error: memberError } = await supabase
     .from('members')
     .insert({
       team_id: team.id,
+      user_id: userId,
       github_id: githubId,
       github_username: githubUsername,
       avatar_url: avatarUrl,
@@ -83,12 +85,12 @@ export async function joinTeam(inviteCode: string): Promise<Team | null> {
   }
 
   // 既に参加しているか確認
-  const { githubId, githubUsername, avatarUrl } = extractUserInfo(user);
+  const { userId, githubId, githubUsername, avatarUrl } = extractUserInfo(user);
   const { data: existingMember } = await supabase
     .from('members')
     .select()
     .eq('team_id', team.id)
-    .eq('github_id', githubId)
+    .eq('user_id', userId)
     .single();
 
   if (existingMember) {
@@ -96,11 +98,11 @@ export async function joinTeam(inviteCode: string): Promise<Team | null> {
   }
 
   // メンバーとして追加
-  // 追加したするだけなのでエラーだった場合のみ
   const { error: memberError } = await supabase
     .from('members')
     .insert({
       team_id: team.id,
+      user_id: userId,
       github_id: githubId,
       github_username: githubUsername,
       avatar_url: avatarUrl,
@@ -122,11 +124,10 @@ export async function getMyTeam(): Promise<Team | null> {
     return null;
   }
 
-  const { githubId } = extractUserInfo(user);
   const { data: member } = await supabase
     .from('members')
     .select('team_id')
-    .eq('github_id', githubId)
+    .eq('user_id', user.id)
     .single();
 
   if (!member) {
@@ -168,33 +169,40 @@ export async function leaveTeam(teamId: string): Promise<void> {
     throw new Error('ログインが必要です');
   }
 
-  const { githubId } = extractUserInfo(user);
   const { error } = await supabase
     .from('members')
     .delete()
     .eq('team_id', teamId)
-    .eq('github_id', githubId);
+    .eq('user_id', user.id);
 
   if (error) {
     throw new Error('チームの退出に失敗しました');
   }
 }
 
-// 現在のメンバー情報を取得
-export async function getMyMember(): Promise<Member | null> {
+// 現在のメンバー情報を取得（team_id指定可）
+export async function getMyMember(teamId?: string): Promise<Member | null> {
   const supabase = getSupabaseClient();
   const user = await getCurrentUser();
-  
+
   if (!user) {
     return null;
   }
 
-  const { githubId } = extractUserInfo(user);
-  const { data } = await supabase
+  let query = supabase
     .from('members')
     .select()
-    .eq('github_id', githubId)
-    .single();
+    .eq('user_id', user.id);
+
+  if (teamId) {
+    query = query.eq('team_id', teamId);
+  }
+
+  const { data, error } = await query.limit(1).single();
+
+  if (error) {
+    console.error('[TeamSync] getMyMember error:', error.message);
+  }
 
   return data as Member | null;
 }

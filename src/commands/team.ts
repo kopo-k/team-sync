@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { createTeam, joinTeam, leaveTeam } from '../services/teamService';
+import { createTeam, joinTeam, leaveTeam, getMyMember } from '../services/teamService';
 import { getTeamActivities } from '../services/activityService';
 import { TeamStateManager } from '../services/teamStateManager';
 import { TeamSyncSidebarProvider } from '../views/sidebarProvider';
@@ -20,6 +20,10 @@ export async function createTeamCommand(state: TeamStateManager, sidebar: TeamSy
     if (team) {
       // 状態更新
       state.setTeam(team.id, team.name, team.invite_code);
+      const member = await getMyMember(team.id);
+      if (member) {
+        state.setMemberId(member.id);
+      }
       const activities = await getTeamActivities(team.id);
       state.setMembers(activities);
 
@@ -54,6 +58,10 @@ export async function joinTeamCommand(state: TeamStateManager, sidebar: TeamSync
     if (team) {
       // 状態更新
       state.setTeam(team.id, team.name, team.invite_code);
+      const member = await getMyMember(team.id);
+      if (member) {
+        state.setMemberId(member.id);
+      }
       const activities = await getTeamActivities(team.id);
       state.setMembers(activities);
 

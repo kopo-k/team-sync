@@ -18,14 +18,12 @@ async function setupLoggedInState(state: TeamStateManager, sidebar: TeamSyncSide
   const team = await getMyTeam();
   if (team) {
     state.setTeam(team.id, team.name, team.invite_code);
+    const member = await getMyMember(team.id);
+    if (member) {
+      state.setMemberId(member.id);
+    }
     const activities = await getTeamActivities(team.id);
     state.setMembers(activities);
-  }
-
-  // メンバーIDを設定
-  const member = await getMyMember();
-  if (member) {
-    state.setMemberId(member.id);
   }
 
   // UI反映
